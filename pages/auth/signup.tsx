@@ -19,9 +19,26 @@ export default function SignUpPage() {
 
     try {
       const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      if (name.trim().length > 0) {
-        await updateProfile(credential.user, { displayName: name.trim() });
+      const trimmedName = name.trim();
+      if (trimmedName.length > 0) {
+        await updateProfile(credential.user, { displayName: trimmedName });
       }
+
+      try {
+        await fetch('/api/register-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: credential.user.uid,
+            email: credential.user.email,
+            displayName: trimmedName.length > 0 ? trimmedName : credential.user.displayName,
+            photoURL: credential.user.photoURL
+          })
+        });
+      } catch (profileErr) {
+        console.error('Failed to register profile in Supabase', profileErr);
+      }
+
       await router.push('/');
     } catch (err) {
       console.error(err);
@@ -102,4 +119,6 @@ export default function SignUpPage() {
     </div>
   );
 }
+
+
 

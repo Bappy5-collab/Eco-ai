@@ -6,11 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "export": "next export"
   },
   "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^7.4.4",
     "@headlessui/react": "^1.7.18",
     "@heroicons/react": "^2.1.5",
+    "@supabase/supabase-js": "^2.105.4",
     "classnames": "^2.5.1",
     "firebase": "^10.14.1",
     "next": "^14.2.3",
