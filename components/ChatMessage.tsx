@@ -9,6 +9,7 @@ export interface ChatMessageData {
   role: ChatRole;
   content: string;
   createdAt: number;
+  images?: string[]; // Array of image URLs or base64 data URLs
 }
 
 type ChatMessageProps = {
@@ -77,6 +78,19 @@ export function ChatMessage({ message, onCopy, onRegenerate, onSpeak, onStopSpea
         </div>
       </div>
       <div className={clsx('group relative max-w-2xl rounded-2xl px-4 py-3 shadow-sm transition-colors', theme.bubble)}>
+        {message.images && message.images.length > 0 ? (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {message.images.map((imageUrl, idx) => (
+              <div key={idx} className="relative">
+                <img
+                  src={imageUrl}
+                  alt={`Uploaded image ${idx + 1}`}
+                  className="max-h-64 max-w-full rounded-lg object-contain"
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
         <div className="whitespace-pre-wrap break-words text-sm leading-6">
           {showSkeleton ? (
             <div className="flex flex-col gap-2">

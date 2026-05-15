@@ -7,7 +7,9 @@ import {
   PaperAirplaneIcon,
   MicrophoneIcon,
   StopIcon as StopSolidIcon,
-  XMarkIcon
+  XMarkIcon,
+  PhotoIcon,
+  SparklesIcon as SparklesSolidIcon
 } from '@heroicons/react/24/solid';
 import clsx from 'classnames';
 import Link from 'next/link';
@@ -21,8 +23,17 @@ const CONVERSATIONS_STORAGE_KEY = 'eco-ai-conversations';
 const SYSTEM_PROMPT: ApiMessage = {
   role: 'system',
   content:
-    'You are Eco AI 🌿, an intelligent, calm, and creative assistant built by Chandon Kumar. Keep replies helpful, concise, and lightly witty with sparing emoji use. Reference earlier context when it helps, ask clarifying questions when unsure, and always introduce yourself as Eco AI when asked about your identity.'
+    'You are Eco AI 🌿, an intelligent, calm, and creative multimodal assistant built by Chandon Kumar. You can: (1) understand and analyse images that the user uploads (describe contents, read text, identify objects, judge style, answer follow-up questions about pictures); (2) generate brand-new images from a description when the user asks you to "draw", "create an image", "generate a picture", or similar; (3) hold normal text conversations. When the user uploads images, refer to what is actually visible. When asked to generate an image, briefly confirm and produce one. Keep replies helpful, concise, and lightly witty with sparing emoji use. Reference earlier context when it helps, ask clarifying questions when unsure, and always introduce yourself as Eco AI when asked about your identity.'
 };
+
+const IMAGE_GENERATION_REGEX = /\b(draw|sketch|paint|illustrate|render|design|generate|create|make|produce|imagine)\b[^.?!]{0,80}\b(image|picture|photo|photograph|illustration|artwork|art|drawing|sketch|painting|logo|poster|wallpaper|portrait|scene|render|design|icon)\b/i;
+
+function looksLikeImageGenerationRequest(text: string): boolean {
+  if (!text) return false;
+  const normalized = text.trim();
+  if (normalized.length === 0) return false;
+  return IMAGE_GENERATION_REGEX.test(normalized);
+}
 const INITIAL_GREETING =
   'Hey there! I’m Eco AI 🌿—built by Chandon Kumar to help with code, green ideas, and whatever else you need. What can I do for you today?';
 
@@ -168,6 +179,9 @@ export default function Home({ colorScheme = 'light', toggleColorScheme }: HomeP
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     inputRef.current = input;
@@ -216,6 +230,7 @@ export default function Home({ colorScheme = 'light', toggleColorScheme }: HomeP
     setMessages(initialMessages);
     setMemory('');
     setInput('');
+    setUploadedImages([]);
     setError(null);
     setIsStreaming(false);
   };
@@ -231,6 +246,7 @@ export default function Home({ colorScheme = 'light', toggleColorScheme }: HomeP
     setMessages(conversation.messages);
     setMemory(conversation.memory ?? '');
     setInput('');
+    setUploadedImages([]);
     setError(null);
     setIsStreaming(false);
   };
@@ -437,6 +453,38 @@ export default function Home({ colorScheme = 'light', toggleColorScheme }: HomeP
   }, [isHydrated, messages]);
 
   useEffect(() => {
+    if (!isHydrated || isStreaming || !user || !activeConversationId) return;
+    if (messages.length < 2) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetch('/api/log-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          user: {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL
+          },
+          conversation: {
+            id: activeConversationId,
+            title: deriveConversationTitle(messages)
+          },
+          messages
+        })
+      }).catch((err) => {
+        if (err?.name !== 'AbortError') console.error('log-chat failed', err);
+      });
+    }, 800);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [messages, isStreaming, isHydrated, user, activeConversationId]);
+
+  useEffect(() => {
     if (!isHydrated || isStreaming) return;
     if (messages.length < 4) return;
     const summary = generateConversationSummary(messages);
@@ -510,6 +558,65 @@ export default function Home({ colorScheme = 'light', toggleColorScheme }: HomeP
       setVoiceError('Unable to access the microphone. Please check browser permissions and try again.');
     }
   };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const imageFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
+    const skipped = files.length - imageFiles.length;
+
+    if (imageFiles.length === 0) {
+      setError('Please choose image files (PNG, JPG, etc.).');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const MAX_BYTES = 8 * 1024 * 1024;
+    const oversized = imageFiles.filter((file) => file.size > MAX_BYTES);
+    const readable = imageFiles.filter((file) => file.size <= MAX_BYTES);
+
+    try {
+      const dataUrls = await Promise.all(
+        readable.map(
+          (file) =>
+            new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const result = reader.result;
+                if (typeof result === 'string' && result.length > 0) {
+                  resolve(result);
+                } else {
+                  reject(new Error(`Failed to read ${file.name}`));
+                }
+              };
+              reader.onerror = () => reject(reader.error ?? new Error(`Failed to read ${file.name}`));
+              reader.readAsDataURL(file);
+            })
+        )
+      );
+
+      if (dataUrls.length > 0) {
+        setUploadedImages((prev) => [...prev, ...dataUrls].slice(0, 8));
+        setError(null);
+      }
+
+      const issues: string[] = [];
+      if (skipped > 0) issues.push(`${skipped} non-image file${skipped === 1 ? '' : 's'} skipped`);
+      if (oversized.length > 0) issues.push(`${oversized.length} image${oversized.length === 1 ? '' : 's'} over 8MB skipped`);
+      if (issues.length > 0) setError(issues.join(' · '));
+    } catch (err) {
+      console.error('Image upload failed', err);
+      setError('Could not read one or more images. Please try again.');
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
 
   const sendTextMessage = async (history: ApiMessage[]) => {
     setIsStreaming(true);
@@ -590,11 +697,110 @@ export default function Home({ colorScheme = 'light', toggleColorScheme }: HomeP
     }
   };
 
+  const handleAnalyzeImage = useCallback(async (images: string[], prompt: string) => {
+    if (images.length === 0) return;
+    if (isStreaming || !isHydrated) return;
+
+    setError(null);
+    setIsStreaming(true);
+    stopSpeaking();
+
+    const analysisPrompt = prompt.trim() || 'What is in this image? Describe it in detail.';
+    const userMessage = createMessage('user', analysisPrompt);
+    userMessage.images = images;
+    const historyBeforeAnalysis = mapMessagesToApi(messages);
+    setMessages((prev) => [...prev, userMessage]);
+
+    try {
+      const response = await fetch('/api/vision', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          images,
+          prompt: analysisPrompt,
+          history: historyBeforeAnalysis.slice(-6)
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to analyze image');
+      }
+
+      const data = await response.json();
+      const assistantMessage = createMessage('assistant', data.analysis);
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to analyze image. Please try again.');
+    } finally {
+      setIsStreaming(false);
+    }
+  }, [isHydrated, isStreaming, mapMessagesToApi, messages]);
+
+  const handleGenerateImage = useCallback(async (prompt: string) => {
+    if (!prompt.trim() || isGeneratingImage || isStreaming || !isHydrated) return;
+
+    setError(null);
+    setIsGeneratingImage(true);
+    stopSpeaking();
+
+    const userMessage = createMessage('user', `Generate an image: ${prompt}`);
+    setMessages((prev) => [...prev, userMessage]);
+
+    try {
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          size: '1024x1024',
+          quality: 'standard'
+        })
+      });
+
+      const data = await response.json().catch(() => ({} as any));
+
+      if (!response.ok) {
+        const detail = (data?.detail || data?.error || `Request failed (${response.status})`) as string;
+        console.error('generate-image failed', data);
+        setError(`Image generation failed: ${detail}`);
+        return;
+      }
+
+      const assistantMessage = createMessage('assistant', `Here's the generated image based on your prompt: "${data.revisedPrompt || prompt}"`);
+      assistantMessage.images = [data.imageUrl];
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err: any) {
+      console.error(err);
+      setError(`Failed to generate image: ${err?.message ?? 'unknown error'}`);
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  }, [isHydrated, isStreaming, isGeneratingImage]);
+
   const sendUserPrompt = useCallback(
     async (prompt: string) => {
       const trimmed = prompt.trim();
       if (!trimmed || isStreaming || !isHydrated) return;
       setError(null);
+
+      if (uploadedImages.length > 0) {
+        const imagesToAnalyze = [...uploadedImages];
+        setUploadedImages([]);
+        setInput('');
+        await handleAnalyzeImage(imagesToAnalyze, trimmed);
+        return;
+      }
+
+      if (looksLikeImageGenerationRequest(trimmed)) {
+        setInput('');
+        await handleGenerateImage(trimmed);
+        return;
+      }
 
       const userMessage = createMessage('user', trimmed);
       const updatedMessages = [...messages, userMessage];
@@ -604,7 +810,7 @@ export default function Home({ colorScheme = 'light', toggleColorScheme }: HomeP
       const apiMessages = mapMessagesToApi(updatedMessages);
       await sendTextMessage(apiMessages);
     },
-    [isHydrated, isStreaming, mapMessagesToApi, messages]
+    [isHydrated, isStreaming, mapMessagesToApi, messages, uploadedImages, handleAnalyzeImage, handleGenerateImage]
   );
 
   useEffect(() => {
@@ -683,6 +889,7 @@ export default function Home({ colorScheme = 'light', toggleColorScheme }: HomeP
     setMessages(resetMessages);
     setMemory('');
     setInput('');
+    setUploadedImages([]);
     setConversations(updatedConversations);
     setMenuOpenId(null);
     setIsStreaming(false);
@@ -1081,61 +1288,74 @@ export default function Home({ colorScheme = 'light', toggleColorScheme }: HomeP
 
             <footer className="sticky bottom-0 border-t border-slate-200/60 bg-white/85 px-3 py-3 sm:px-4 sm:py-5 shadow-inner backdrop-blur-xl dark:border-slate-700/60 dark:bg-slate-900/80">
               <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-4xl flex-col gap-2 sm:gap-3">
+                {uploadedImages.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {uploadedImages.map((imageUrl, idx) => (
+                      <div key={idx} className="relative">
+                        <img
+                          src={imageUrl}
+                          alt={`Upload ${idx + 1}`}
+                          className="h-20 w-20 rounded-lg object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(idx)}
+                          className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg transition hover:bg-rose-600"
+                          aria-label="Remove image"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="relative flex items-end gap-2 sm:gap-3">
-                  {/* Mic button - left side on mobile, hidden on larger screens */}
-                  {speechInputSupported ? (
-                    <button
-                      type="button"
-                      onClick={handleToggleRecording}
-                      className={clsx(
-                        'sm:hidden inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:text-slate-200 dark:focus:ring-offset-slate-900',
-                        isRecording
-                          ? 'border-transparent bg-rose-500 text-white shadow-lg focus:ring-rose-300'
-                          : 'border-slate-200/70 bg-white/80 hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-600/70 dark:bg-slate-800/70 dark:hover:border-emerald-400 dark:hover:text-emerald-300'
-                      )}
-                      aria-label={isRecording ? 'Stop voice input' : 'Start voice input'}
-                      aria-pressed={isRecording}
-                    >
-                      {isRecording ? <StopSolidIcon className="h-3.5 w-3.5" /> : <MicrophoneIcon className="h-3.5 w-3.5" />}
-                    </button>
-                  ) : null}
-                  
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="image-upload"
+                  />
+                  <label
+                    htmlFor="image-upload"
+                    className="inline-flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200/70 bg-white/80 text-slate-600 transition hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-600/70 dark:bg-slate-800/70 dark:hover:border-emerald-400 dark:hover:text-emerald-300"
+                    aria-label="Upload image"
+                  >
+                    <PhotoIcon className="h-4 w-4" />
+                  </label>
                   <textarea
                     ref={textareaRef}
                     value={input}
                     onChange={(event) => {
                       setInput(event.target.value);
-                      // Use setTimeout to ensure DOM is updated before adjusting height
                       setTimeout(() => adjustTextareaHeight(), 0);
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type your message…"
+                    placeholder={uploadedImages.length > 0 ? "Add a description or question about the image…" : "Type your message…"}
                     rows={1}
-                    className={clsx(
-                      'no-scrollbar flex-1 min-w-0 resize-none rounded-xl sm:rounded-2xl border border-slate-200/80 bg-white/90 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base text-slate-900 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-900/40 max-h-[150px] sm:max-h-[200px]'
-                    )}
+                    className="no-scrollbar flex-1 min-w-0 resize-none rounded-xl sm:rounded-2xl border border-slate-200/80 bg-white/90 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base text-slate-900 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-900/40 max-h-[150px] sm:max-h-[200px]"
                     style={{ minHeight: '44px' }}
-                    disabled={isStreaming}
+                    disabled={isStreaming || isGeneratingImage}
                   />
-                  
-                  {/* Send button - right side on mobile */}
-                  <button
-                    type="submit"
-                    className="sm:hidden inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                    disabled={isStreaming || !input.trim()}
-                    aria-label="Send message"
-                  >
-                    <PaperAirplaneIcon className="h-3.5 w-3.5" />
-                  </button>
-                  
-                  {/* Button group - right side on larger screens */}
-                  <div className="hidden sm:flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateImage(input)}
+                      className="hidden sm:inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/70 bg-white/80 text-slate-600 transition hover:border-emerald-400 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600/70 dark:bg-slate-800/70 dark:hover:border-emerald-400 dark:hover:text-emerald-300"
+                      disabled={isStreaming || isGeneratingImage || !input.trim()}
+                      aria-label="Generate image"
+                    >
+                      <SparklesSolidIcon className="h-4 w-4" />
+                    </button>
                     {speechInputSupported ? (
                       <button
                         type="button"
                         onClick={handleToggleRecording}
                         className={clsx(
-                          'inline-flex h-11 w-11 items-center justify-center rounded-full border text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:text-slate-200 dark:focus:ring-offset-slate-900',
+                          'inline-flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full border text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:text-slate-200 dark:focus:ring-offset-slate-900',
                           isRecording
                             ? 'border-transparent bg-rose-500 text-white shadow-lg focus:ring-rose-300'
                             : 'border-slate-200/70 bg-white/80 hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-600/70 dark:bg-slate-800/70 dark:hover:border-emerald-400 dark:hover:text-emerald-300'
@@ -1143,26 +1363,27 @@ export default function Home({ colorScheme = 'light', toggleColorScheme }: HomeP
                         aria-label={isRecording ? 'Stop voice input' : 'Start voice input'}
                         aria-pressed={isRecording}
                       >
-                        {isRecording ? <StopSolidIcon className="h-4 w-4" /> : <MicrophoneIcon className="h-4 w-4" />}
+                        {isRecording ? <StopSolidIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <MicrophoneIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                       </button>
                     ) : null}
                     <button
                       type="submit"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                      disabled={isStreaming || !input.trim()}
+                      className="inline-flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                      disabled={isStreaming || isGeneratingImage || (!input.trim() && uploadedImages.length === 0)}
                       aria-label="Send message"
                     >
-                      <PaperAirplaneIcon className="h-4 w-4" />
+                      <PaperAirplaneIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </button>
                   </div>
                 </div>
               </form>
               {isRecording ? <p className="mt-2 text-xs font-medium text-rose-500">Listening… speak freely, then tap stop.</p> : null}
+              {isGeneratingImage ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Generating image…</p> : null}
               {error ? <p className="mt-2 text-sm text-red-500">{error}</p> : null}
               {voiceError ? <p className="mt-2 text-xs text-rose-500">{voiceError}</p> : null}
               {isStreaming ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Eco AI is thinking…</p> : null}
-              {!speechInputSupported ? <p className="mt-2 text-xs text-slate-400">Voice input isn’t supported in this browser.</p> : null}
-              {!speechOutputSupported ? <p className="mt-1 text-xs text-slate-400">Voice playback isn’t supported in this browser.</p> : null}
+              {!speechInputSupported ? <p className="mt-2 text-xs text-slate-400">Voice input isn't supported in this browser.</p> : null}
+              {!speechOutputSupported ? <p className="mt-1 text-xs text-slate-400">Voice playback isn't supported in this browser.</p> : null}
             </footer>
           </section>
         </div>
