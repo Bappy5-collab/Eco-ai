@@ -39,7 +39,7 @@ export default function SignUpPage() {
         console.error('Failed to register profile in Supabase', profileErr);
       }
 
-      await router.push('/');
+      await router.push('/chat');
     } catch (err) {
       console.error(err);
       setError('Unable to create account. Please try again with a different email or check your password.');

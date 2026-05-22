@@ -197,7 +197,7 @@ export default function ProfilePage({ colorScheme = 'light', toggleColorScheme }
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href="/"
+              href="/chat"
               className="inline-flex items-center rounded-full border border-slate-200/70 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:border-slate-600/70 dark:bg-slate-800/70 dark:text-slate-200"
             >
               Back to chat

@@ -18,7 +18,7 @@ export default function SignInPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      await router.push('/');
+      await router.push('/chat');
     } catch (err) {
       console.error(err);
       setError('Unable to sign in. Please check your credentials and try again.');
