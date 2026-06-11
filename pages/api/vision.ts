@@ -1,5 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '25mb'
+    }
+  }
+};
+
 type HistoryMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -79,8 +87,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('OpenAI Vision API error', errorData);
-      return res.status(response.status).json({ error: 'Failed to analyze image.' });
+      console.error('OpenAI Vision API error', response.status, errorData);
+      return res.status(response.status).json({ error: 'Failed to analyze image.', detail: errorData });
     }
 
     const data = await response.json();

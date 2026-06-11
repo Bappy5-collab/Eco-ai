@@ -79,6 +79,21 @@ function createMessage(role: ApiMessage['role'], content: string): ChatMessageDa
   };
 }
 
+// Base64 image data (data: URLs) can be several MB each and quickly blow past
+// the ~5MB localStorage quota. Strip those before persisting; keep small http(s)
+// URLs (e.g. generated images) so they still render after a reload.
+function stripHeavyImages<T extends { images?: string[] }>(messages: T[]): T[] {
+  return messages.map((message) => {
+    if (!message.images || message.images.length === 0) return message;
+    const light = message.images.filter((img) => !img.startsWith('data:'));
+    if (light.length === message.images.length) return message;
+    const next = { ...message };
+    if (light.length === 0) delete next.images;
+    else next.images = light;
+    return next;
+  });
+}
+
 const MAX_MEMORY_MESSAGES = 6;
 
 function generateConversationSummary(history: ChatMessageData[]): string {
@@ -404,7 +419,11 @@ export default function ChatPage({ colorScheme = 'light', toggleColorScheme }: H
 
   useEffect(() => {
     if (typeof window === 'undefined' || !isHydrated) return;
-    window.localStorage.setItem(chatStorageKey, JSON.stringify(messages));
+    try {
+      window.localStorage.setItem(chatStorageKey, JSON.stringify(stripHeavyImages(messages)));
+    } catch (err) {
+      console.error('Failed to persist messages', err);
+    }
   }, [messages, isHydrated, chatStorageKey]);
 
   useEffect(() => {
@@ -433,7 +452,15 @@ export default function ChatPage({ colorScheme = 'light', toggleColorScheme }: H
 
   useEffect(() => {
     if (!isHydrated) return;
-    window.localStorage.setItem(conversationsStorageKey, JSON.stringify(conversations));
+    try {
+      const lightConversations = conversations.map((conversation) => ({
+        ...conversation,
+        messages: stripHeavyImages(conversation.messages)
+      }));
+      window.localStorage.setItem(conversationsStorageKey, JSON.stringify(lightConversations));
+    } catch (err) {
+      console.error('Failed to persist conversations', err);
+    }
   }, [conversations, isHydrated, conversationsStorageKey]);
 
   useEffect(() => {
@@ -897,7 +924,11 @@ export default function ChatPage({ colorScheme = 'light', toggleColorScheme }: H
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(chatStorageKey);
       window.localStorage.removeItem(memoryStorageKey);
-      window.localStorage.setItem(conversationsStorageKey, JSON.stringify(updatedConversations));
+      const lightConversations = updatedConversations.map((conversation) => ({
+        ...conversation,
+        messages: stripHeavyImages(conversation.messages)
+      }));
+      window.localStorage.setItem(conversationsStorageKey, JSON.stringify(lightConversations));
     }
   };
 
