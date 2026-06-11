@@ -9,6 +9,7 @@ import {
   StopIcon as StopSolidIcon,
   XMarkIcon,
   PhotoIcon,
+  PlusIcon,
   SparklesIcon as SparklesSolidIcon
 } from '@heroicons/react/24/solid';
 import clsx from 'classnames';
@@ -1003,16 +1004,22 @@ export default function ChatPage({ colorScheme = 'light', toggleColorScheme }: H
           onClick={(event) => event.stopPropagation()}
         >
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Eco AI 🌿</h2>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md shadow-emerald-500/30">
+                <SparklesSolidIcon className="h-5 w-5" />
+              </span>
+              <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">Eco AI</h2>
+            </div>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               Your intelligent, calm, and creative AI assistant built by Chandon Kumar.
             </p>
           </div>
           <button
             type="button"
             onClick={handleNewConversation}
-            className="mt-4 inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-emerald-400"
+            className="mt-4 inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:-translate-y-px hover:shadow-xl hover:shadow-emerald-500/40"
           >
+            <PlusIcon className="h-4 w-4" />
             New Chat
           </button>
           <div className="no-scrollbar mt-6 flex-1 overflow-y-auto pr-1">
@@ -1104,14 +1111,18 @@ export default function ChatPage({ colorScheme = 'light', toggleColorScheme }: H
             </div>
 
             <div className="hidden w-full items-center justify-between gap-3 sm:flex">
-              <div>
-                <h1 className="text-xl font-semibold sm:text-2xl">Eco AI</h1>
-                <p className="text-sm text-slate-600/80 dark:text-slate-300/80">
-                  Your intelligent, calm, and creative AI assistant built by Chandon Kumar.
-                </p>
-                {activeConversation?.title && activeConversation.title !== 'New Chat' ? (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Current chat: {activeConversation.title}</p>
-                ) : null}
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/30">
+                  <SparklesSolidIcon className="h-6 w-6" />
+                </span>
+                <div>
+                  <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Eco AI</h1>
+                  {activeConversation?.title && activeConversation.title !== 'New Chat' ? (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{activeConversation.title}</p>
+                  ) : (
+                    <p className="text-sm text-slate-500/90 dark:text-slate-400/90">Intelligent, calm &amp; creative assistant</p>
+                  )}
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
@@ -1319,7 +1330,7 @@ export default function ChatPage({ colorScheme = 'light', toggleColorScheme }: H
               </div>
             </main>
 
-            <footer className="sticky bottom-0 border-t border-slate-200/60 bg-white/85 px-3 py-3 sm:px-4 sm:py-5 shadow-inner backdrop-blur-xl dark:border-slate-700/60 dark:bg-slate-900/80">
+            <footer className="sticky bottom-0 border-t border-slate-200/50 bg-white/70 px-3 py-3 sm:px-4 sm:py-5 backdrop-blur-xl dark:border-slate-700/50 dark:bg-slate-900/60">
               <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-4xl flex-col gap-2 sm:gap-3">
                 {uploadedImages.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
@@ -1328,7 +1339,7 @@ export default function ChatPage({ colorScheme = 'light', toggleColorScheme }: H
                         <img
                           src={imageUrl}
                           alt={`Upload ${idx + 1}`}
-                          className="h-20 w-20 rounded-lg object-cover"
+                          className="h-20 w-20 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700"
                         />
                         <button
                           type="button"
@@ -1342,7 +1353,7 @@ export default function ChatPage({ colorScheme = 'light', toggleColorScheme }: H
                     ))}
                   </div>
                 ) : null}
-                <div className="relative flex items-end gap-2 sm:gap-3">
+                <div className="relative flex items-end gap-1.5 rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-1.5 shadow-lg shadow-slate-900/5 transition focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-400/30 dark:border-slate-700/70 dark:bg-slate-800/70 dark:focus-within:border-emerald-400/70 dark:focus-within:ring-emerald-500/20">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -1354,10 +1365,10 @@ export default function ChatPage({ colorScheme = 'light', toggleColorScheme }: H
                   />
                   <label
                     htmlFor="image-upload"
-                    className="inline-flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200/70 bg-white/80 text-slate-600 transition hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-600/70 dark:bg-slate-800/70 dark:hover:border-emerald-400 dark:hover:text-emerald-300"
+                    className="inline-flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 dark:text-slate-400 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
                     aria-label="Upload image"
                   >
-                    <PhotoIcon className="h-4 w-4" />
+                    <PhotoIcon className="h-5 w-5" />
                   </label>
                   <textarea
                     ref={textareaRef}
@@ -1367,45 +1378,46 @@ export default function ChatPage({ colorScheme = 'light', toggleColorScheme }: H
                       setTimeout(() => adjustTextareaHeight(), 0);
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder={uploadedImages.length > 0 ? "Add a description or question about the image…" : "Type your message…"}
+                    placeholder={uploadedImages.length > 0 ? "Add a description or question about the image…" : "Message Eco AI…"}
                     rows={1}
-                    className="no-scrollbar flex-1 min-w-0 resize-none rounded-xl sm:rounded-2xl border border-slate-200/80 bg-white/90 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base text-slate-900 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-900/40 max-h-[150px] sm:max-h-[200px]"
-                    style={{ minHeight: '44px' }}
+                    className="no-scrollbar flex-1 min-w-0 resize-none border-0 bg-transparent px-1 py-2.5 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500 max-h-[150px] sm:max-h-[200px]"
+                    style={{ minHeight: '40px' }}
                     disabled={isStreaming || isGeneratingImage}
                   />
-                  <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                  <div className="flex shrink-0 items-center gap-1">
                     <button
                       type="button"
                       onClick={() => handleGenerateImage(input)}
-                      className="hidden sm:inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/70 bg-white/80 text-slate-600 transition hover:border-emerald-400 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600/70 dark:bg-slate-800/70 dark:hover:border-emerald-400 dark:hover:text-emerald-300"
+                      className="hidden sm:inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
                       disabled={isStreaming || isGeneratingImage || !input.trim()}
                       aria-label="Generate image"
+                      title="Generate an image from your text"
                     >
-                      <SparklesSolidIcon className="h-4 w-4" />
+                      <SparklesSolidIcon className="h-5 w-5" />
                     </button>
                     {speechInputSupported ? (
                       <button
                         type="button"
                         onClick={handleToggleRecording}
                         className={clsx(
-                          'inline-flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full border text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:text-slate-200 dark:focus:ring-offset-slate-900',
+                          'inline-flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-800',
                           isRecording
-                            ? 'border-transparent bg-rose-500 text-white shadow-lg focus:ring-rose-300'
-                            : 'border-slate-200/70 bg-white/80 hover:border-emerald-400 hover:text-emerald-600 dark:border-slate-600/70 dark:bg-slate-800/70 dark:hover:border-emerald-400 dark:hover:text-emerald-300'
+                            ? 'bg-rose-500 text-white shadow-md shadow-rose-500/30 focus:ring-rose-300'
+                            : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 dark:text-slate-400 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300'
                         )}
                         aria-label={isRecording ? 'Stop voice input' : 'Start voice input'}
                         aria-pressed={isRecording}
                       >
-                        {isRecording ? <StopSolidIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <MicrophoneIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                        {isRecording ? <StopSolidIcon className="h-4 w-4" /> : <MicrophoneIcon className="h-4 w-4" />}
                       </button>
                     ) : null}
                     <button
                       type="submit"
-                      className="inline-flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                      className="inline-flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30 transition hover:-translate-y-px hover:shadow-lg hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none dark:disabled:from-slate-600 dark:disabled:to-slate-600"
                       disabled={isStreaming || isGeneratingImage || (!input.trim() && uploadedImages.length === 0)}
                       aria-label="Send message"
                     >
-                      <PaperAirplaneIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <PaperAirplaneIcon className="h-4 w-4" />
                     </button>
                   </div>
                 </div>

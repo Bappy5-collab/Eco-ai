@@ -110,7 +110,8 @@ export default function AdminPage() {
       return;
     }
     if (!res.ok) {
-      setLoginError(`Login failed (${res.status})`);
+      const data = await res.json().catch(() => ({}));
+      setLoginError(data?.error ? `Login failed: ${data.error}` : `Login failed (${res.status})`);
       return;
     }
     if (typeof window !== 'undefined') {
